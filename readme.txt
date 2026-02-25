@@ -1,30 +1,24 @@
-Как именно включать “жесть”
-1) Стандартный режим (жёстко, но без перемешивания)
+ How to Enable Strict Mode
+
+Standard (strict, no shuffling)
+
 python cisco_sanitizer.py running-config.txt safe-config.txt
-# или
+or
 python cisco_sanitizer.py running-config.txt safe-config.txt --mode=standard
 
-2) MAX-паранойя:
 
-всё выше;
+MAX (maximum paranoia)
 
-плюс:
+Shuffles interfaces/ACLs/routes, adds fake entries, removes comments, fully anonymizes names.
 
-перемешаны интерфейсы/ACL/маршруты;
-
-добавлены фейковые интерфейсы/ACL/маршруты;
-
-комментарии выпилены;
-
-descriptions, VLAN, ACL names максимально анонимизированы.
 
 python cisco_sanitizer.py running-config.txt safe-config.txt --max
-# или
+ or
 python cisco_sanitizer.py running-config.txt safe-config.txt --mode=max
 
-3) Разные соли для разных проектов
+Different salts per project
 
-Чтобы один и тот же реальный IP в разных конфигах/проектах мапился в разные фейковые IP:
+Maps the same real IP to different fake IPs:
 
-python cisco_sanitizer.py run_proj1.txt safe_proj1.txt --max --salt=proj1_secret
-python cisco_sanitizer.py run_proj2.txt safe_proj2.txt --max --salt=proj2_secret
+python cisco_sanitizer.py run1.txt safe1.txt --max --salt=proj1_secret
+python cisco_sanitizer.py run2.txt safe2.txt --max --salt=proj2_secret
