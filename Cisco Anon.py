@@ -4,12 +4,11 @@
 Cisco Top-Secret Config Sanitizer v3
 
 Modes:
-  standard – сильная анонимизация
-  max      – паранойя: перемешивание блоков, фейковые объекты и максимальная зачистка
-
-Назначение:
-  Берёт running-config (или похожий Cisco-конфиг) и выдаёт dummy-конфиг,
-  который можно безопасно отдавать ИИ/кому угодно.
+  standard – hard ano
+  max      – paranoik mode max anonim
+  
+How it works:
+Takes a running-config (or similar Cisco config) and outputs a dummy config that’s safe to share with AI or anyone else.
 """
 
 import re
@@ -24,7 +23,7 @@ from typing import Dict, List
 # CONFIG
 # =====================================================================
 
-# Базовый salt (можно переопределить через --salt)
+# salt
 DEFAULT_IP_SALT = "CHANGE_THIS_SALT_TO_YOUR_OWN_SECRET"
 
 
@@ -154,11 +153,11 @@ class CiscoSanitizer:
     def sanitize_line(self, line: str) -> str:
         original = line
 
-        # 1) Crypto / keys / certificates – вырезаем
+        # 1) Crypto / keys / certificates – del
         if re.search(r"\b(crypto|certificate|pkcs12|trustpoint|key-string|rsa key)\b", line, re.I):
             return "<CRYPTO_REDACTED>"
 
-        # 2) Секреты / пароли / хэши: замена ВСЕГО хвоста
+        # 2) Secret hash all replace!
         line = re.sub(r"(\benable\s+secret)\b.*", r"\1 <SECRET_REDACTED>", line, flags=re.I)
         line = re.sub(r"(\benable\s+password)\b.*", r"\1 <PASSWORD_REDACTED>", line, flags=re.I)
 
@@ -236,7 +235,7 @@ class CiscoSanitizer:
         line = re.sub(r"(PID:\s*)\S+", r"\1<MODEL_REDACTED>", line, flags=re.I)
         line = re.sub(r"(Model number\s*:).*", r"\1 <MODEL_REDACTED>", line, flags=re.I)
 
-        # Общий случай "cisco <model> ..." (ограниченно)
+        # "cisco <model> ..." (ограниченно)
         line = re.sub(r"^(cisco\s+)(\S+)", r"\1<MODEL_REDACTED>", line, flags=re.I)
 
         # 8) Emails
@@ -267,7 +266,7 @@ class CiscoSanitizer:
                     fake6 = map_ipv6(clean, self.ip_salt)
                     line = line.replace(clean, fake6)
 
-        # 13) MAX MODE – доп. зачистка по строке
+        # 13) MAX MODE 
         if self.mode == "max":
             line = self._apply_max_mode_to_line(line)
 
@@ -278,7 +277,7 @@ class CiscoSanitizer:
     # ------------------ MAX MODE: per-line hardcore ------------------
 
     def _apply_max_mode_to_line(self, line: str) -> str:
-        # Descriptions → REDACTED, но сохраняем отступ
+        # Descriptions → REDACTED
         if re.search(r"\bdescription\b", line, flags=re.I):
             indent = re.match(r"^\s*", line).group(0)
             return indent + "description <REDACTED_DESC>"
@@ -346,7 +345,6 @@ class CiscoSanitizer:
             flags=re.I,
         )
 
-        # Комментарии
         if line.strip().startswith("!"):
             return "! <COMMENT_REDACTED>"
 
@@ -362,13 +360,13 @@ class CiscoSanitizer:
           - добавляем фейковые интерфейсы и ACL
           - собираем всё обратно
         """
-        # Для детерминированности по salt:
+        # determine salt:
         random.seed(hashlib.sha256(self.ip_salt.encode("utf-8")).digest())
 
         interfaces: List[List[str]] = []
         acls: List[List[str]] = []
         routes: List[str] = []
-        used = set()  # индексы строк, которые заняты блоками
+        used = set()  # index 
 
         # --- extract interface blocks ---
         i = 0
@@ -417,7 +415,7 @@ class CiscoSanitizer:
                 routes.append(line)
                 used.add(idx)
 
-        # --- keep "other" lines в исходном порядке ---
+        # --- keep "other" lines  ---
         others = [lines[idx] for idx in range(n) if idx not in used]
 
         # --- shuffle blocks ---
@@ -431,7 +429,7 @@ class CiscoSanitizer:
         new_lines: List[str] = []
         new_lines.append("! ==== SANITIZED & RANDOMIZED CONFIG (MAX MODE) ====\n")
 
-        # others (глобальные настройки и т.п.)
+        # others 
         new_lines.extend(others)
 
         # interfaces
@@ -466,7 +464,7 @@ class CiscoSanitizer:
         fake_acls: List[List[str]] = []
         fake_routes: List[str] = []
 
-        # Немного фейковых интерфейсов
+        # Fake int
         for idx in range(2):
             iface_name = f"GigabitEthernet9/{idx}"
             vlan = 4000 + idx
@@ -481,7 +479,7 @@ class CiscoSanitizer:
             ]
             fake_interfaces.append(block)
 
-        # Пара фейковых ACL
+        # Fake ACL
         for idx in range(2):
             acl_name = f"ACL_FAKE_{idx+1:02d}"
             block = [
@@ -493,7 +491,7 @@ class CiscoSanitizer:
             ]
             fake_acls.append(block)
 
-        # Фейковые маршруты
+        # fakae ip route
         fake_routes.append("ip route 10.250.0.0 255.255.0.0 10.0.0.1\n")
         fake_routes.append("ip route 198.18.0.0 255.254.0.0 10.0.0.2\n")
 
@@ -554,3 +552,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
